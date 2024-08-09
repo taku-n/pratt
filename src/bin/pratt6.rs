@@ -281,7 +281,7 @@ async fn parse_expr(language: &Language, input: &mut Input, min_bp: i32) -> SExp
                 }
 
                 // If the operator is parentheses, it does not affect the expression following )
-                // This is why there is LeadingOpKind::Paren
+                // This is why there is LeadingOpKind::Paren not having right_bp not needed
                 //
                 // This block looks for the end of the effect
                 // It is needed because, at the end, there is not any symbol to end
