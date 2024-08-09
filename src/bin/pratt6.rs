@@ -237,6 +237,9 @@ async fn main() -> Result<()> {
     let e = parse_expr(&language, &mut input, 0).await;
     println!("{}", &e);
 
+    //   1   =   2   =   I  (  3 ) T  (  4 ) E   (  5    [  6 ] )
+    // 0   21 20   21 20  0  0      0  0      41  0   100 0
+    //   ^
     let expr = String::from("1=2=I(3)T(4)E(5[6])");
     println!("{}", &expr);
     let mut input = Input::new(expr).await;
@@ -272,10 +275,17 @@ async fn parse_expr(language: &Language, input: &mut Input, min_bp: i32) -> SExp
                     let inner_expr = parse_expr(language, input, 0).await;
                     children.push(inner_expr);
 
+                    // It got back because of the correct symbol
                     assert_eq!(input.peek().await.unwrap(), *symbol);
                     input.bump().await;
                 }
 
+                // If the operator is parentheses, it does not affect the expression following )
+                // This is why there is LeadingOpKind::Paren
+                //
+                // This block looks for the end of the effect
+                // It is needed because, at the end, there is not any symbol to end
+                //         unlike the just before block
                 if let LeadingOpKind::Prefix{right_bp} = leading_operator.kind {
                     let following_expr = parse_expr(language, input, right_bp).await;
                     children.push(following_expr);
@@ -299,10 +309,9 @@ async fn parse_expr(language: &Language, input: &mut Input, min_bp: i32) -> SExp
                 for following_operator in language.following_operators.iter() {
                     if following_operator.symbols[0] == c {
                         // If the right is not greater than the left, it ends
-                        // prev-op       Atom   curr-op
-                        //        min_bp      bp
-                        // Does the expression match the pattern?
-                        if following_operator.kind.left_bp() <= min_bp {
+                        // prev-op       Atom        curr-op
+                        //        min_bp      left_bp
+                        if min_bp >= following_operator.kind.left_bp() {
                             return leading_expr;
                         }
 
@@ -318,6 +327,7 @@ async fn parse_expr(language: &Language, input: &mut Input, min_bp: i32) -> SExp
                             input.bump().await;
                         }
 
+                        // The order is different but this right_bp is still the right_bp
                         if let FollowingOpKind::Infix{right_bp, ..} = following_operator.kind {
                             let following_expr = parse_expr(language, input, right_bp).await;
                             children.push(following_expr);
